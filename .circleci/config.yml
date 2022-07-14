@@ -219,7 +219,9 @@ jobs:
           name: Run migrations
           command: |
             cd backend
+            npm cache clean –force
             npm install
+            npm cache clean –force
             npm run migrations > migrations_dump.txt
       - run:
           name: Send migration status to kvdb.io
@@ -329,7 +331,7 @@ jobs:
             FRONTEND_WEBSITE=http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website.${AWS_DEFAULT_REGION}.amazonaws.com
             if curl -s $FRONTEND_WEBSITE | grep "Welcome"
             then
-              exit 0
+              exit 1
             else
               exit 1
             fi
