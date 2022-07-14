@@ -31,3 +31,9 @@ jobs:
       - save_cache:
           paths: [backend/node_modules]
           key: backend-deps
+
+workflows:
+  default:
+    jobs:
+      - build-frontend
+      - build-backend
