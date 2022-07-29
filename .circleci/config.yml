@@ -294,7 +294,6 @@ jobs:
           command: |
             cd backend
             npm install
-            apk add --update ansible openssh-client tar gzip
             
       - run:
           name: Package Backend
