@@ -352,13 +352,8 @@ jobs:
           name: Backend smoke test
           command: |
              BACKEND_IP=$(aws ec2 describe-instances --query 'Reservations[*].Instances[*].PublicIpAddress' --output text)
-             API_URL="http://${BACKEND_PUBLIC_IP}:3030"
-            if curl -s "$API_URL/api/status" | grep "ok"
-            then
-              exit 0
-            else
-              exit 1
-            fi
+             export API_URL="http://${BACKEND_IP}:3030"
+             curl "${API_URL}/api/status"
   smoke-test-frontend:
     docker:
       - image: python:3.7-alpine3.11
