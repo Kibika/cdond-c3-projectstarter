@@ -220,9 +220,23 @@ jobs:
       - run:
           name: Configure server
           command: |
+            echo ENVIRONMENT=production > "backend/.env.sample"
+            echo TYPEORM_CONNECTION=postgres >> "backend/.env.sample"
+            echo TYPEORM_ENTITIES=./src/modules/domain/**/*.entity.ts >> "backend/.env.sample"
+            echo TYPEORM_MIGRATIONS=./src/migrations/*.ts >> "backend/.env.sample"
+            echo TYPEORM_MIGRATIONS_DIR=./src/migrations >> "backend/.env.sample"
+            echo NODE_ENV=production >> "backend/.env.sample"
+            echo TYPEORM_HOST=$TYPEORM_HOST >> "backend/.env.sample"
+            echo TYPEORM_PORT=$TYPEORM_PORT >> "backend/.env.sample"
+            echo TYPEORM_USERNAME=$TYPEORM_USERNAME >> "backend/.env.sample"
+            echo TYPEORM_PASSWORD=$TYPEORM_PASSWORD >> "backend/.env.sample"
+            echo TYPEORM_DATABASE=$TYPEORM_DATABASE >> "backend/.env.sample"
             cat ~/project/.circleci/ansible/inventory.txt
             export ANSIBLE_HOST_KEY_CHECKING=False
             ansible-playbook -i ~/project/.circleci/ansible/inventory.txt ~/project/.circleci/ansible/configure-server.yml    
+      - persist_to_workspace:
+          root: ~/
+          paths: [/project/backend]
       - destroy-environment:
           workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}'  
 
@@ -234,6 +248,8 @@ jobs:
       - restore_cache:
           keys:
             - build-backend
+      - attach_workspace:
+          at: ~/
       - run:
           name: Run migrations
           command: |
@@ -316,11 +332,11 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints: ["d9:06:93:7c:dd:ac:25:bf:3d:f3:10:f5:5d:69:f6:67"]
-      - attach_workspace: 
-          at: ~/
       - restore_cache:
           keys:
             - build-backend
+      - attach_workspace: 
+          at: ~/
       - run:
           name: Install dependencies
           command: |
