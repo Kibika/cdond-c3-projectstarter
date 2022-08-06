@@ -188,17 +188,6 @@ jobs:
   configure-infrastructure:
     docker:
       - image: python:3.7-alpine3.11
-        # environment:
-        #   NODE_ENV: "production"
-        #   VERSION: "1"
-        #   ENVIRONMENT: "production"
-        #   TYPEORM_CONNECTION: $TYPEORM_CONNECTION
-        #   TYPEORM_HOST: $TYPEORM_HOST
-        #   TYPEORM_USERNAME: $TYPEORM_USERNAME
-        #   TYPEORM_PASSWORD: $TYPEORM_PASSWORD
-        #   TYPEORM_DATABASE: $TYPEORM_DATABASE
-        #   TYPEORM_PORT: $TYPEORM_PORT
-        #   TYPEORM_ENTITIES: $TYPEORM_ENTITIES
     steps:
       - checkout
       # Add ssh keys with fingerprint
@@ -274,8 +263,8 @@ jobs:
                 -H "X-Api-Key: ${THISDB_API_KEY}" \
                 -d "0"
             fi
-      # - destroy-environment:
-      #     workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}'
+      - destroy-environment:
+          workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}'
 
 
   deploy-frontend:
@@ -304,15 +293,10 @@ jobs:
             npm run build
             tar -czvf artifact-"${CIRCLE_WORKFLOW_ID:0:7}".tar.gz dist
             aws s3 cp dist "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}" --recursive
-      # - destroy-environment:
-      #     workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}'
-      # - revert-migrations:
-      #     workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}'
-  #     # Here's where you will add some code to rollback on failure
-  #     - destroy-environment:
-  #         workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
-#       # Here's where you will add some code to rollback on failure      
-
+      - destroy-environment:
+          workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}'
+      - revert-migrations:
+          workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}'
 
   deploy-backend:
     docker:
@@ -378,8 +362,8 @@ jobs:
               --output text)
              export API_URL="http://${BACKEND_IP}:3030"
              curl "${API_URL}/api/status"
-      # - destroy-environment:
-      #     workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}'
+      - destroy-environment:
+          workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}'
 
   smoke-test-frontend:
     docker:
@@ -404,10 +388,44 @@ jobs:
             else
               exit 1
             fi           
-      # - destroy-environment:
-      #     workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}'
-      # - revert-migrations:
-      #     workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}' 
+      - destroy-environment:
+          workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}'
+      - revert-migrations:
+          workflow_id: '${CIRCLE_WORKFLOW_ID:0:7}' 
+
+  cloudfront-update:
+    docker:
+      # Docker image here that supports AWS CLI
+      - image: amazon/aws-cli
+    steps:
+      # Checkout code from git
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            yum install tar gzip npm nodejs -y
+      - run:
+          name: Update cloudfront distribution
+          command: |
+            # your code here
+            export OldWorkflowID=$(aws cloudformation list-exports \
+            --query "Exports[?Name==\`Cloudfront-${CIRCLE_WORKFLOW_ID:0:7}\`].Value" \
+            --no-paginate --output text)
+            echo $OldWorkflowID >> ~/OldWorkflowID.txt
+            cat ~/OldWorkflowID.txt
+            # Change the initial stack name, as applicable to you
+            aws cloudformation deploy \
+            --template-file .circleci/files/cloudfront.yml \
+            --stack-name cloudfront-${CIRCLE_WORKFLOW_ID:0:7} \
+            --parameter-overrides WorkflowID=${CIRCLE_WORKFLOW_ID:0:7} \
+            --tags project=udapeople
+            echo OldWorkflowID=${OldWorkflowID}
+            echo Current Workflow ID: ${CIRCLE_WORKFLOW_ID:0:7}
+      # Here's where you will add some code to rollback on failure
+      - destroy-environment:
+          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
+      - revert-migrations:
+          workflow_id: ${CIRCLE_WORKFLOW_ID:0:7}
  
 workflows:
   default:
@@ -439,3 +457,5 @@ workflows:
           requires: [deploy-backend]
       - smoke-test-frontend:
           requires: [deploy-frontend]
+      - cloudfront-update:
+          requires: [smoke-test]
